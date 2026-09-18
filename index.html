@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" id="htmlRoot">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>اسکن زمین</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:Tahoma,sans-serif; background:#0e1512; color:#eaf3ee; }
+  #map { height: 40vh; width: 100%; }
+  .panel { padding: 14px 16px; }
+  .row { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+  label { font-size:13px; color:#9fcbb5; min-width:66px; }
+  input[type=text], input[type=number] { flex:1; padding:10px; border-radius:8px; border:1px solid #23443a; background:#132621; color:#eaf3ee; font-size:14px; min-width:0; }
+  input[type=range] { flex:1; }
+  button { padding:14px; border:none; border-radius:10px; background:#1d9e75; color:#fff; font-size:16px; font-weight:bold; }
+  button.full { width:100%; }
+  button.small { padding:10px 14px; font-size:14px; background:#23443a; }
+  button:disabled { background:#3a5c50; }
+  #status { font-size:13px; color:#9fcbb5; margin-top:8px; min-height:18px; white-space:pre-line; }
+  .maps { display:flex; flex-direction:column; gap:4px; padding:0 16px 24px; }
+  .mapCard { border:1px solid #23443a; border-radius:12px; overflow:hidden; margin-bottom:14px; background:#0b100e; }
+  .mapCard canvas { width:100%; display:block; }
+  .cap { font-size:14px; font-weight:bold; padding:10px 12px 4px; }
+  .sub { font-size:12px; color:#9fcbb5; padding:0 12px 10px; }
+  .legend { display:flex; align-items:center; gap:8px; padding:0 12px 12px; font-size:11px; color:#cfe9dc; }
+  .legend .bar { flex:1; height:10px; border-radius:5px; }
+  .apikeyRow { display:none; }
+  .apikeyRow.show { display:flex; }
+  a { color:#5dcaa5; }
+  .searchRow { display:flex; gap:6px; padding:10px 16px 0; }
+  .searchRow input { flex:1; }
+  .footer { padding:10px 16px 28px; font-size:11px; color:#6f9483; border-top:1px solid #1c2f28; margin-top:6px; line-height:1.8; }
+  .suggestions { margin:0 16px; background:#132621; border:1px solid #23443a; border-radius:8px; overflow:hidden; }
+  .suggestions div { padding:10px; font-size:13px; border-bottom:1px solid #1c2f28; }
+  .suggestions div:last-child { border-bottom:none; }
+  .langRow { display:flex; gap:6px; padding:10px 16px 0; flex-wrap:wrap; }
+  .langBtn { padding:7px 12px; font-size:12px; font-weight:normal; border-radius:20px; background:#132621; border:1px solid #23443a; color:#9fcbb5; width:auto; }
+  .langBtn.active { background:#1d9e75; color:#fff; border-color:#1d9e75; }
+  .hero { padding:14px 16px 4px; }
+  .hero h1 { font-size:17px; margin:0 0 8px; color:#eaf3ee; }
+  .hero svg { width:100%; height:auto; display:block; background:#0b100e; border-radius:12px; border:1px solid #23443a; }
+</style>
+</head>
+<body>
+
+<div class="langRow" id="langRow">
+  <button class="langBtn active" data-lang="fa">فارسی</button>
+  <button class="langBtn" data-lang="en">English</button>
+  <button class="langBtn" data-lang="tr">Türkçe</button>
+  <button class="langBtn" data-lang="ar">العربية</button>
+</div>
+
+<div class="hero">
+  <h1 data-i18n="heroTitle">همین‌طوری کار می‌کنه: لایه جنگل جدا می‌شه و فقط زمین می‌مونه</h1>
+  <svg viewBox="0 0 380 300" role="img">
+    <title data-i18n="heroSvgTitle">نمونه فیلتر کردن پوشش جنگل برای رسیدن به سطح زمین</title>
+    <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#5dcaa5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+
+    <line x1="90" y1="88" x2="90" y2="140" stroke="#3a5c50" stroke-width="1.5"/>
+    <line x1="190" y1="88" x2="190" y2="140" stroke="#3a5c50" stroke-width="1.5"/>
+    <line x1="290" y1="88" x2="290" y2="140" stroke="#3a5c50" stroke-width="1.5"/>
+    <circle cx="90" cy="60" r="32" fill="#1d4d33" stroke="#2e6e40" stroke-width="0.5"/>
+    <circle cx="190" cy="60" r="32" fill="#1d4d33" stroke="#2e6e40" stroke-width="0.5"/>
+    <circle cx="290" cy="60" r="32" fill="#1d4d33" stroke="#2e6e40" stroke-width="0.5"/>
+    <circle cx="80" cy="52" r="3" fill="#5dcaa5"/>
+    <circle cx="100" cy="70" r="3" fill="#5dcaa5"/>
+    <circle cx="180" cy="55" r="3" fill="#5dcaa5"/>
+    <circle cx="200" cy="72" r="3" fill="#5dcaa5"/>
+    <circle cx="280" cy="50" r="3" fill="#5dcaa5"/>
+    <circle cx="300" cy="68" r="3" fill="#5dcaa5"/>
+
+    <line x1="40" y1="140" x2="340" y2="140" stroke="#3a5c50" stroke-width="1" stroke-dasharray="4,3"/>
+    <circle cx="60" cy="138" r="3" fill="#9fcbb5"/>
+    <circle cx="130" cy="138" r="3" fill="#9fcbb5"/>
+    <circle cx="160" cy="138" r="3" fill="#9fcbb5"/>
+    <circle cx="220" cy="138" r="3" fill="#9fcbb5"/>
+    <circle cx="250" cy="138" r="3" fill="#9fcbb5"/>
+    <circle cx="320" cy="138" r="3" fill="#9fcbb5"/>
+
+    <text x="190" y="160" text-anchor="middle" font-size="10" fill="#9fcbb5" data-i18n="heroLegend">سبز: بازگشت از تاج · روشن: بازگشت از زمین</text>
+
+    <line x1="190" y1="172" x2="190" y2="196" stroke="#5dcaa5" stroke-width="1.5" marker-end="url(#arrow)"/>
+    <text x="200" y="188" font-size="10" fill="#5dcaa5" data-i18n="heroFilter">فیلتر: فقط زمین</text>
+
+    <path d="M40,255 C110,235 150,262 190,248 C230,232 270,258 340,246" fill="none" stroke="#78a846" stroke-width="2"/>
+    <circle cx="60" cy="250" r="3" fill="#9fcbb5"/>
+    <circle cx="120" cy="242" r="3" fill="#9fcbb5"/>
+    <circle cx="160" cy="256" r="3" fill="#9fcbb5"/>
+    <circle cx="260" cy="238" r="3" fill="#9fcbb5"/>
+    <circle cx="300" cy="252" r="3" fill="#9fcbb5"/>
+    <circle cx="200" cy="248" r="5" fill="#e64040"/>
+    <line x1="205" y1="248" x2="250" y2="222" stroke="#eaf3ee" stroke-width="0.5" stroke-dasharray="2,2"/>
+    <text x="253" y="220" font-size="9" fill="#eaf3ee" data-i18n="heroAnomaly1">ناهنجاری</text>
+    <text x="253" y="232" font-size="9" fill="#eaf3ee" data-i18n="heroAnomaly2">(حفره/فلز)</text>
+  </svg>
+</div>
+
+<div class="searchRow">
+  <input type="text" id="placeSearch" data-i18n-ph="searchPh" placeholder="اسم منطقه یا شهر رو تایپ کنید...">
+  <button class="small" id="searchBtn" data-i18n="searchBtn">جستجو</button>
+</div>
+<div class="suggestions" id="suggestions" style="display:none"></div>
+
+<div id="map"></div>
+
+<div class="panel">
+  <div class="row apikeyRow" id="apikeyRow">
+    <label data-i18n="apikeyLabel">کلید API</label>
+    <input type="text" id="apikey" data-i18n-ph="apikeyPh" placeholder="کلید رایگان OpenTopography">
+  </div>
+  <div class="row">
+    <label data-i18n="radiusLabel">شعاع (کیلومتر)</label>
+    <input type="range" id="radius" min="1" max="20" value="5">
+    <span id="radiusVal">5</span>
+  </div>
+  <div class="row">
+    <label data-i18n="latLabel">عرض جغرافیایی</label>
+    <input type="text" inputmode="decimal" id="latInput" placeholder="36.5652">
+  </div>
+  <div class="row">
+    <label data-i18n="lonLabel">طول جغرافیایی</label>
+    <input type="text" inputmode="decimal" id="lonInput" placeholder="53.0584">
+  </div>
+  <button class="full" id="scanBtn" data-i18n="scanBtn">اسکن کن</button>
+  <div id="status"></div>
+  <div class="cap" style="font-size:12px;font-weight:normal;color:#9fcbb5;padding-top:10px">
+    <span data-i18n="apikeyLinkLabel">کلید رایگان:</span> <a href="https://portal.opentopography.org/myopentopo" target="_blank">portal.opentopography.org/myopentopo</a>
+  </div>
+</div>
+
+<div class="maps" id="results"></div>
+
+<script>
+const I18N = {
+  fa: { dir:'rtl', title:'اسکن زمین',
+    heroTitle:'همین‌طوری کار می‌کنه: لایه جنگل جدا می‌شه و فقط زمین می‌مونه',
+    heroSvgTitle:'نمونه فیلتر کردن پوشش جنگل برای رسیدن به سطح زمین',
+    heroLegend:'سبز: بازگشت از تاج · روشن: بازگشت از زمین',
+    heroFilter:'فیلتر: فقط زمین', heroAnomaly1:'ناهنجاری', heroAnomaly2:'(حفره/فلز)',
+    searchPh:'اسم منطقه یا شهر رو تایپ کنید...', searchBtn:'جستجو',
+    apikeyLabel:'کلید API', apikeyPh:'کلید رایگان OpenTopography',
+    radiusLabel:'شعاع (کیلومتر)', latLabel:'عرض جغرافیایی', lonLabel:'طول جغرافیایی',
+    scanBtn:'اسکن کن', apikeyLinkLabel:'کلید رایگان:',
+    noApikey:'کلید API رو وارد کنید.', noPoint:'اول یه نقطه رو انتخاب کنید (نقشه، جستجو یا مختصات دستی).',
+    downloading:'در حال دانلود مدل ارتفاعی...', processing:'در حال پردازش...',
+    map1title:'۱. مدل رنگی زمین', map1sub:'سبز = پست‌تر، قهوه‌ای/سفید = مرتفع‌تر — سایه‌روشن برای حس عمق',
+    map2title:'۲. برجستگی محلی', map2sub:'آبی = فرورفتگی نسبت به اطراف، قرمز = برجستگی نسبت به اطراف',
+    legendLow:'فرورفتگی', legendHigh:'برجستگی', meters:'متر',
+    map3subPrefix:'۳. نقاط ناهنجاری (', map3subSuffix:' مورد)',
+    map3sub:'دایره قرمز = انحراف غیرعادی از سطح اطراف — کاندید سازه/تغییر شکل زمین',
+    footerCoord:'مختصات مرکز:', footerRadius:'شعاع:', footerKm:'کیلومتر', footerPixel:'اندازه هر پیکسل: تقریباً', footerMeters:'متر',
+    footerSource:'منبع داده: Copernicus DEM 30m (رایگان، OpenTopography)',
+    footerNote:'توجه: دقت مکانی ۳۰ متر — برای الگوهای بزرگ (تپه، تغییر شکل زمین)، نه اشیای کوچک مثل حفره یا فلز.',
+    doneStatus:' نقطه ناهنجاری شناسایی شد.', errStatus:'خطا: ', corsHint:'\nهمه راه‌های اتصال (مستقیم و پروکسی‌ها) شکست خوردن. یه بار دیگه امتحان کنید یا شعاع رو کمتر بزنید.',
+    searching:'در حال جستجو...', noResults:'چیزی پیدا نشد.', searchErr:'خطا در جستجو.',
+    noData:'داده ارتفاعی معتبری برای این منطقه پیدا نشد (احتمالاً دریا یا خطای مرز). منطقه دیگه‌ای امتحان کنید.',
+    networkErr:'اتصال به سرور برقرار نشد. اینترنت‌تون رو چک کنید یا چند دقیقه دیگه امتحان کنید.'
+  },
+  en: { dir:'ltr', title:'Ground Scan',
+    heroTitle:'How it works: the forest layer is filtered out, leaving only the ground',
+    heroSvgTitle:'Example of filtering forest cover to reach ground level',
+    heroLegend:'Green: canopy returns · Light: ground returns',
+    heroFilter:'Filter: ground only', heroAnomaly1:'Anomaly', heroAnomaly2:'(void/metal)',
+    searchPh:'Type a place or city name...', searchBtn:'Search',
+    apikeyLabel:'API Key', apikeyPh:'Free OpenTopography key',
+    radiusLabel:'Radius (km)', latLabel:'Latitude', lonLabel:'Longitude',
+    scanBtn:'Scan', apikeyLinkLabel:'Free key:',
+    noApikey:'Please enter your API key.', noPoint:'Pick a point first (map, search, or manual coordinates).',
+    downloading:'Downloading elevation model...', processing:'Processing...',
+    map1title:'1. Colored terrain model', map1sub:'Green = lower, brown/white = higher — hillshaded for depth',
+    map2title:'2. Local relief', map2sub:'Blue = lower than surroundings, red = higher than surroundings',
+    legendLow:'Depression', legendHigh:'Elevation', meters:'m',
+    map3subPrefix:'3. Anomaly points (', map3subSuffix:')',
+    map3sub:'Red dot = abnormal deviation from surrounding surface — candidate structure/terrain change',
+    footerCoord:'Center coordinates:', footerRadius:'Radius:', footerKm:'km', footerPixel:'Pixel size: approx.', footerMeters:'m',
+    footerSource:'Data source: Copernicus DEM 30m (free, OpenTopography)',
+    footerNote:'Note: 30m resolution — suited to large patterns (mounds, terrain change), not small objects like voids or metal.',
+    doneStatus:' anomaly points detected.', errStatus:'Error: ', corsHint:'\nAll connection routes (direct and proxies) failed. Try again, or use a smaller radius.',
+    searching:'Searching...', noResults:'No results found.', searchErr:'Search error.',
+    noData:'No valid elevation data found for this area (possibly sea or a boundary issue). Try a different area.',
+    networkErr:'Could not reach the server. Check your connection or try again in a few minutes.'
+  },
+  tr: { dir:'ltr', title:'Zemin Taraması',
+    heroTitle:'Nasıl çalışır: orman katmanı süzülür, sadece zemin kalır',
+    heroSvgTitle:'Zemin seviyesine ulaşmak için orman örtüsünü süzme örneği',
+    heroLegend:'Yeşil: tepe dönüşleri · Açık: zemin dönüşleri',
+    heroFilter:'Filtre: sadece zemin', heroAnomaly1:'Anomali', heroAnomaly2:'(boşluk/metal)',
+    searchPh:'Bir yer veya şehir adı yazın...', searchBtn:'Ara',
+    apikeyLabel:'API Anahtarı', apikeyPh:'Ücretsiz OpenTopography anahtarı',
+    radiusLabel:'Yarıçap (km)', latLabel:'Enlem', lonLabel:'Boylam',
+    scanBtn:'Tara', apikeyLinkLabel:'Ücretsiz anahtar:',
+    noApikey:'Lütfen API anahtarınızı girin.', noPoint:'Önce bir nokta seçin (harita, arama veya manuel koordinat).',
+    downloading:'Yükseklik modeli indiriliyor...', processing:'İşleniyor...',
+    map1title:'1. Renkli arazi modeli', map1sub:'Yeşil = alçak, kahverengi/beyaz = yüksek — derinlik için gölgelendirme',
+    map2title:'2. Yerel rölyef', map2sub:'Mavi = çevresine göre alçak, kırmızı = çevresine göre yüksek',
+    legendLow:'Çukur', legendHigh:'Tümsek', meters:'m',
+    map3subPrefix:'3. Anomali noktaları (', map3subSuffix:')',
+    map3sub:'Kırmızı nokta = çevresel yüzeyden anormal sapma — olası yapı/arazi değişimi',
+    footerCoord:'Merkez koordinatları:', footerRadius:'Yarıçap:', footerKm:'km', footerPixel:'Piksel boyutu: yaklaşık', footerMeters:'m',
+    footerSource:'Veri kaynağı: Copernicus DEM 30m (ücretsiz, OpenTopography)',
+    footerNote:'Not: 30m çözünürlük — büyük desenler için uygundur (tümsek, arazi değişimi), boşluk veya metal gibi küçük nesneler için değil.',
+    doneStatus:' anomali noktası tespit edildi.', errStatus:'Hata: ', corsHint:'\nTüm bağlantı yolları (doğrudan ve proxy) başarısız oldu. Tekrar deneyin veya yarıçapı küçültün.',
+    searching:'Aranıyor...', noResults:'Sonuç bulunamadı.', searchErr:'Arama hatası.',
+    noData:'Bu alan için geçerli yükseklik verisi bulunamadı (deniz veya sınır sorunu olabilir). Başka bir alan deneyin.',
+    networkErr:'Sunucuya ulaşılamadı. Bağlantınızı kontrol edin veya birkaç dakika sonra tekrar deneyin.'
+  },
+  ar: { dir:'rtl', title:'مسح الأرض',
+    heroTitle:'هكذا يعمل: تتم إزالة طبقة الغابة ويبقى سطح الأرض فقط',
+    heroSvgTitle:'مثال على تصفية الغطاء الحرجي للوصول إلى سطح الأرض',
+    heroLegend:'أخضر: انعكاس من الأشجار · فاتح: انعكاس من الأرض',
+    heroFilter:'تصفية: الأرض فقط', heroAnomaly1:'شذوذ', heroAnomaly2:'(فراغ/معدن)',
+    searchPh:'اكتب اسم منطقة أو مدينة...', searchBtn:'بحث',
+    apikeyLabel:'مفتاح API', apikeyPh:'مفتاح OpenTopography المجاني',
+    radiusLabel:'نصف القطر (كم)', latLabel:'خط العرض', lonLabel:'خط الطول',
+    scanBtn:'امسح', apikeyLinkLabel:'مفتاح مجاني:',
+    noApikey:'الرجاء إدخال مفتاح API.', noPoint:'اختر نقطة أولاً (الخريطة، البحث، أو إحداثيات يدوية).',
+    downloading:'جارٍ تنزيل نموذج الارتفاع...', processing:'جارٍ المعالجة...',
+    map1title:'١. نموذج التضاريس الملون', map1sub:'أخضر = أخفض، بني/أبيض = أعلى — تظليل لإحساس العمق',
+    map2title:'٢. التضاريس المحلية', map2sub:'أزرق = أخفض من المحيط، أحمر = أعلى من المحيط',
+    legendLow:'انخفاض', legendHigh:'ارتفاع', meters:'م',
+    map3subPrefix:'٣. نقاط الشذوذ (', map3subSuffix:')',
+    map3sub:'نقطة حمراء = انحراف غير طبيعي عن السطح المحيط — مرشح لهيكل/تغيّر تضاريسي',
+    footerCoord:'إحداثيات المركز:', footerRadius:'نصف القطر:', footerKm:'كم', footerPixel:'حجم البكسل: تقريباً', footerMeters:'م',
+    footerSource:'مصدر البيانات: Copernicus DEM 30م (مجاني، OpenTopography)',
+    footerNote:'ملاحظة: دقة ٣٠ متراً — مناسبة للأنماط الكبيرة (تلال، تغيّر تضاريسي)، وليس للأجسام الصغيرة كالفراغات أو المعادن.',
+    doneStatus:' نقطة شذوذ تم اكتشافها.', errStatus:'خطأ: ', corsHint:'\nفشلت كل مسارات الاتصال (المباشر والوسيط). حاول مرة أخرى أو استخدم نصف قطر أصغر.',
+    searching:'جارٍ البحث...', noResults:'لم يتم العثور على نتائج.', searchErr:'خطأ في البحث.',
+    noData:'لم يتم العثور على بيانات ارتفاع صالحة لهذه المنطقة (قد تكون بحراً أو مشكلة حدودية). جرّب منطقة أخرى.',
+    networkErr:'تعذر الوصول إلى الخادم. تحقق من اتصالك أو حاول مرة أخرى لاحقاً.'
+  }
+};
+
+function toEnglishDigits(str) {
+  const fa = '۰۱۲۳۴۵۶۷۸۹', ar = '٠١٢٣٤٥٦٧٨٩';
+  return str.replace(/[۰-۹٠-٩]/g, ch => {
+    const i = fa.indexOf(ch); if (i > -1) return i;
+    const j = ar.indexOf(ch); if (j > -1) return j;
+    return ch;
+  }).replace(/[،٫]/g, '.');
+}
+function normalizeInput(el) {
+  el.addEventListener('input', () => {
+    const cleaned = toEnglishDigits(el.value);
+    if (cleaned !== el.value) {
+      const pos = el.selectionStart;
+      el.value = cleaned;
+      try { el.setSelectionRange(pos, pos); } catch (e) {}
+    }
+  });
+}
+
+let currentLang = localStorage.getItem('forestscan_lang') || 'fa';
+
+function applyI18n(lang) {
+  const t = I18N[lang];
+  document.getElementById('htmlRoot').setAttribute('lang', lang);
+  document.getElementById('htmlRoot').setAttribute('dir', t.dir);
+  document.title = t.title;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    const key = el.getAttribute('data-i18n-ph');
+    if (t[key] !== undefined) el.setAttribute('placeholder', t[key]);
+  });
+  document.querySelectorAll('.langBtn').forEach(b => b.classList.toggle('active', b.getAttribute('data-lang') === lang));
+  currentLang = lang;
+  localStorage.setItem('forestscan_lang', lang);
+}
+
+document.querySelectorAll('.langBtn').forEach(b => {
+  b.addEventListener('click', () => applyI18n(b.getAttribute('data-lang')));
+});
+applyI18n(currentLang);
+
+const map = L.map('map').setView([32.4, 53.7], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '' }).addTo(map);
+let marker = null;
+let picked = null;
+
+const latInput = document.getElementById('latInput');
+const lonInput = document.getElementById('lonInput');
+
+function setPicked(lat, lon, panTo) {
+  picked = L.latLng(lat, lon);
+  if (marker) marker.setLatLng(picked); else marker = L.marker(picked).addTo(map);
+  latInput.value = lat.toFixed(5);
+  lonInput.value = lon.toFixed(5);
+  if (panTo) map.setView(picked, 11);
+}
+
+map.on('click', e => setPicked(e.latlng.lat, e.latlng.lng, false));
+
+function syncFromInputs() {
+  const la = parseFloat(latInput.value), lo = parseFloat(lonInput.value);
+  if (!isNaN(la) && !isNaN(lo)) setPicked(la, lo, true);
+}
+latInput.addEventListener('change', syncFromInputs);
+lonInput.addEventListener('change', syncFromInputs);
+normalizeInput(latInput);
+normalizeInput(lonInput);
+
+const searchInput = document.getElementById('placeSearch');
+const suggestionsBox = document.getElementById('suggestions');
+
+async function doSearch() {
+  const q = searchInput.value.trim();
+  if (!q) return;
+  const t = I18N[currentLang];
+  suggestionsBox.innerHTML = '<div>' + t.searching + '</div>';
+  suggestionsBox.style.display = 'block';
+  try {
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&accept-language=' + currentLang + '&q=' + encodeURIComponent(q);
+    const res = await fetch(url);
+    const list = await res.json();
+    if (!list.length) { suggestionsBox.innerHTML = '<div>' + t.noResults + '</div>'; return; }
+    suggestionsBox.innerHTML = '';
+    list.forEach(item => {
+      const div = document.createElement('div');
+      div.textContent = item.display_name;
+      div.addEventListener('click', () => {
+        setPicked(parseFloat(item.lat), parseFloat(item.lon), true);
+        suggestionsBox.style.display = 'none';
+        searchInput.value = item.display_name;
+      });
+      suggestionsBox.appendChild(div);
+    });
+  } catch (e) {
+    suggestionsBox.innerHTML = '<div>' + t.searchErr + '</div>';
+  }
+}
+document.getElementById('searchBtn').addEventListener('click', doSearch);
+searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+const radiusEl = document.getElementById('radius');
+radiusEl.addEventListener('input', () => document.getElementById('radiusVal').textContent = radiusEl.value);
+
+const KEY_STORAGE = 'forestscan_apikey';
+const apikeyRow = document.getElementById('apikeyRow');
+const apikeyInput = document.getElementById('apikey');
+const savedKey = localStorage.getItem(KEY_STORAGE);
+if (savedKey) { apikeyInput.value = savedKey; } else { apikeyRow.classList.add('show'); }
+normalizeInput(apikeyInput);
+
+function setStatus(t) { document.getElementById('status').textContent = t; }
+
+function bboxFromCenter(lat, lon, radiusKm) {
+  const dlat = radiusKm / 111.0;
+  const dlon = radiusKm / (111.0 * Math.cos(lat * Math.PI / 180));
+  return { south: lat - dlat, north: lat + dlat, west: lon - dlon, east: lon + dlon };
+}
+
+// OpenTopography's API does not send CORS headers, so a direct browser fetch
+// is blocked by the browser before this code ever sees a response (it just
+// throws "Failed to fetch"). No server/deploy step needed: we just try the
+// direct call first, then walk through a list of free public CORS proxies
+// until one of them works. Everything stays in this single HTML file.
+function buildProxyUrls(directUrl) {
+  const enc = encodeURIComponent(directUrl);
+  return [
+    directUrl,
+    'https://api.codetabs.com/v1/proxy?quest=' + enc,
+    'https://corsproxy.io/?url=' + enc,
+    'https://api.allorigins.win/raw?url=' + enc
+  ];
+}
+
+async function fetchDem(bbox, apiKey) {
+  const params = new URLSearchParams({
+    demtype: 'COP30',
+    south: bbox.south,
+    north: bbox.north,
+    west: bbox.west,
+    east: bbox.east,
+    outputFormat: 'GTiff',
+    API_Key: apiKey
+  });
+  const directUrl = 'https://portal.opentopography.org/API/globaldem?' + params.toString();
+
+  async function attempt(url) {
+    const res = await fetch(url);
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error('HTTP ' + res.status + ': ' + txt.slice(0, 150));
+    }
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength < 50) throw new Error('empty response');
+    return buf;
+  }
+
+  let lastErr;
+  for (const url of buildProxyUrls(directUrl)) {
+    try {
+      return await attempt(url);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
+}
+
+async function loadDem(buffer) {
+  const tiff = await GeoTIFF.fromArrayBuffer(buffer);
+  const image = await tiff.getImage();
+  const width = image.getWidth();
+  const height = image.getHeight();
+  const rasters = await image.readRasters();
+  const data = rasters[0];
+  const arr = new Float64Array(width * height);
+  let validCount = 0;
+  for (let i = 0; i < arr.length; i++) {
+    let v = data[i];
+    if (v < -1000 || v > 9000) v = NaN; else validCount++;
+    arr[i] = v;
+  }
+  if (width === 0 || height === 0 || validCount === 0) {
+    throw new Error('__NO_DATA__');
+  }
+  return { arr, width, height };
+}
+
+function boxBlur(arr, w, h, radius) {
+  const out = new Float64Array(w * h);
+  const tmp = new Float64Array(w * h);
+  const mean = arr.reduce((a, b) => a + (isNaN(b) ? 0 : b), 0) / arr.length;
+  const src = Float64Array.from(arr, v => isNaN(v) ? mean : v);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let sum = 0, count = 0;
+      for (let dx = -radius; dx <= radius; dx++) {
+        const xx = x + dx;
+        if (xx >= 0 && xx < w) { sum += src[y * w + xx]; count++; }
+      }
+      tmp[y * w + x] = sum / count;
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) {
+      let sum = 0, count = 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        const yy = y + dy;
+        if (yy >= 0 && yy < h) { sum += tmp[yy * w + x]; count++; }
+      }
+      out[y * w + x] = sum / count;
+    }
+  }
+  return out;
+}
+
+function localReliefModel(arr, w, h) {
+  const sigma = Math.max(3, Math.round(Math.min(w, h) / 25));
+  const smooth = boxBlur(arr, w, h, sigma);
+  const lrm = new Float64Array(w * h);
+  const mean = arr.reduce((a, b) => a + (isNaN(b) ? 0 : b), 0) / arr.length;
+  for (let i = 0; i < arr.length; i++) {
+    const v = isNaN(arr[i]) ? mean : arr[i];
+    lrm[i] = v - smooth[i];
+  }
+  return lrm;
+}
+
+function hillshadeArr(arr, w, h, cellSizeM) {
+  const out = new Float64Array(w * h);
+  const az = 315 * Math.PI / 180, alt = 45 * Math.PI / 180;
+  const mean = arr.reduce((a, b) => a + (isNaN(b) ? 0 : b), 0) / arr.length;
+  const g = v => isNaN(v) ? mean : v;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const x0 = Math.max(0, x - 1), x1 = Math.min(w - 1, x + 1);
+      const y0 = Math.max(0, y - 1), y1 = Math.min(h - 1, y + 1);
+      const dzdx = (g(arr[y * w + x1]) - g(arr[y * w + x0])) / (2 * cellSizeM);
+      const dzdy = (g(arr[y1 * w + x]) - g(arr[y0 * w + x])) / (2 * cellSizeM);
+      const slope = Math.atan(Math.sqrt(dzdx * dzdx + dzdy * dzdy));
+      let aspect = Math.atan2(dzdy, -dzdx);
+      let sh = Math.cos(alt) * Math.cos(slope) + Math.sin(alt) * Math.sin(slope) * Math.cos(az - aspect);
+      sh = Math.max(0, Math.min(1, sh));
+      out[y * w + x] = sh;
+    }
+  }
+  return out;
+}
+
+function elevationColor(t) {
+  const stops = [
+    [0.00, [46, 110, 64]],
+    [0.30, [120, 168, 70]],
+    [0.55, [214, 196, 100]],
+    [0.78, [176, 128, 82]],
+    [1.00, [250, 248, 244]]
+  ];
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [t0, c0] = stops[i], [t1, c1] = stops[i + 1];
+    if (t >= t0 && t <= t1) {
+      const f = (t - t0) / (t1 - t0 || 1);
+      return [c0[0] + (c1[0] - c0[0]) * f, c0[1] + (c1[1] - c0[1]) * f, c0[2] + (c1[2] - c0[2]) * f];
+    }
+  }
+  return stops[stops.length - 1][1];
+}
+
+function drawTerrain(canvas, arr, shade, w, h) {
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  let min = Infinity, max = -Infinity;
+  for (const v of arr) { if (!isNaN(v)) { if (v < min) min = v; if (v > max) max = v; } }
+  const range = (max - min) || 1;
+  for (let i = 0; i < arr.length; i++) {
+    const t = (arr[i] - min) / range;
+    const [r, g, b] = elevationColor(t);
+    const light = 0.35 + 0.65 * shade[i];
+    img.data[i * 4] = Math.min(255, r * light);
+    img.data[i * 4 + 1] = Math.min(255, g * light);
+    img.data[i * 4 + 2] = Math.min(255, b * light);
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return { min, max };
+}
+
+function drawDiverging(canvas, arr, w, h) {
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+  const std = Math.sqrt(arr.reduce((a, b) => a + (b - mean) ** 2, 0) / arr.length) || 1;
+  const lim = std * 3;
+  for (let i = 0; i < arr.length; i++) {
+    const t = Math.max(-1, Math.min(1, arr[i] / lim));
+    let r, g, b;
+    if (t < 0) { r = 30 + (1 + t) * 80; g = 60 + (1 + t) * 80; b = 160; }
+    else { r = 200; g = 90 - t * 60; b = 40 - t * 20; }
+    img.data[i * 4] = r; img.data[i * 4 + 1] = g; img.data[i * 4 + 2] = b; img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function drawAnomalies(canvas, terrainCanvas, lrmArr, w, h, zThresh) {
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(terrainCanvas, 0, 0);
+  const mean = lrmArr.reduce((a, b) => a + b, 0) / lrmArr.length;
+  const std = Math.sqrt(lrmArr.reduce((a, b) => a + (b - mean) ** 2, 0) / lrmArr.length) || 1;
+  let count = 0;
+  const points = [];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const z = (lrmArr[i] - mean) / std;
+      if (Math.abs(z) > zThresh) { points.push([x, y]); count++; }
+    }
+  }
+  ctx.fillStyle = 'rgba(230,40,40,0.85)';
+  for (const [x, y] of points) {
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(1.4, w / 220), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return count;
+}
+
+function legendBar(el, stops) {
+  el.style.background = 'linear-gradient(90deg,' + stops.join(',') + ')';
+}
+
+document.getElementById('scanBtn').addEventListener('click', async () => {
+  const t = I18N[currentLang];
+  const apiKey = apikeyInput.value.trim();
+  if (!apiKey) { setStatus(t.noApikey); apikeyRow.classList.add('show'); return; }
+  if (!picked) { setStatus(t.noPoint); return; }
+  localStorage.setItem(KEY_STORAGE, apiKey);
+  apikeyRow.classList.remove('show');
+
+  const radiusKm = parseFloat(radiusEl.value);
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  document.getElementById('results').innerHTML = '';
+
+  try {
+    setStatus(t.downloading);
+    const bbox = bboxFromCenter(picked.lat, picked.lng, radiusKm);
+    const buffer = await fetchDem(bbox, apiKey);
+
+    setStatus(t.processing);
+    const { arr, width, height } = await loadDem(buffer);
+    const cellSizeM = (radiusKm * 2 * 1000) / width;
+    const shade = hillshadeArr(arr, width, height, cellSizeM);
+    const lrm = localReliefModel(arr, width, height);
+
+    const results = document.getElementById('results');
+
+    const card1 = document.createElement('div'); card1.className = 'mapCard';
+    card1.innerHTML = '<div class="cap">' + t.map1title + '</div><div class="sub">' + t.map1sub + '</div>';
+    const c1 = document.createElement('canvas'); card1.appendChild(c1);
+    const legend1 = document.createElement('div'); legend1.className = 'legend'; card1.appendChild(legend1);
+    results.appendChild(card1);
+    const { min, max } = drawTerrain(c1, arr, shade, width, height);
+    legend1.innerHTML = '<span>' + Math.round(min) + ' ' + t.meters + '</span><div class="bar"></div><span>' + Math.round(max) + ' ' + t.meters + '</span>';
+    legendBar(legend1.querySelector('.bar'), ['#2e6e40', '#78a846', '#d6c464', '#b08052', '#faf8f4']);
+
+    const card2 = document.createElement('div'); card2.className = 'mapCard';
+    card2.innerHTML = '<div class="cap">' + t.map2title + '</div><div class="sub">' + t.map2sub + '</div>';
+    const c2 = document.createElement('canvas'); card2.appendChild(c2);
+    const legend2 = document.createElement('div'); legend2.className = 'legend'; card2.appendChild(legend2);
+    results.appendChild(card2);
+    drawDiverging(c2, lrm, width, height);
+    legend2.innerHTML = '<span>' + t.legendLow + '</span><div class="bar"></div><span>' + t.legendHigh + '</span>';
+    legendBar(legend2.querySelector('.bar'), ['#3868c8', '#8090a8', '#c85a28']);
+
+    const card3 = document.createElement('div'); card3.className = 'mapCard';
+    const c3 = document.createElement('canvas');
+    const count = drawAnomalies(c3, c1, lrm, width, height, 2.5);
+    card3.innerHTML = '<div class="cap">' + t.map3subPrefix + count + t.map3subSuffix + '</div><div class="sub">' + t.map3sub + '</div>';
+    card3.appendChild(c3);
+    results.appendChild(card3);
+
+    const footer = document.createElement('div');
+    footer.className = 'footer';
+    footer.innerHTML =
+      t.footerCoord + ' ' + picked.lat.toFixed(5) + ', ' + picked.lng.toFixed(5) + '<br>' +
+      t.footerRadius + ' ' + radiusKm + ' ' + t.footerKm + ' &nbsp;|&nbsp; ' + t.footerPixel + ' ' + Math.round(cellSizeM) + ' ' + t.footerMeters + '<br>' +
+      t.footerSource + '<br>' + t.footerNote;
+    results.appendChild(footer);
+
+    setStatus(count + t.doneStatus);
+  } catch (err) {
+    if (err.message === '__NO_DATA__') {
+      setStatus(t.noData);
+    } else if (err.message && (err.message.includes('Failed to fetch') || err.name === 'TypeError')) {
+      setStatus(t.networkErr);
+    } else {
+      setStatus(t.errStatus + err.message + t.corsHint);
+    }
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
